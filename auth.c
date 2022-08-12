@@ -29,6 +29,8 @@ static LIST_HEAD(auth_realms);
 
 void uh_auth_add(const char *path, const char *user, const char *pass)
 {
+	xlog("uh_auth_add path:%s, user:%s, pass:%s\n", path, user, pass);
+
 	struct auth_realm *new = NULL;
 	struct passwd *pwd;
 	const char *new_pass = NULL;
@@ -66,6 +68,8 @@ void uh_auth_add(const char *path, const char *user, const char *pass)
 
 	if (!new)
 		return;
+
+	xlog("uh_auth_add dest_path:%s, dest_user:%s, dest_pass:%s\n", path, user, new_pass);
 
 	new->path = strcpy(dest_path, path);
 	new->user = strcpy(dest_user, user);

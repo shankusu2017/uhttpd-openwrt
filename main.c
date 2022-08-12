@@ -67,6 +67,8 @@ static void uh_config_parse(void)
 	if (!c)
 		return;
 
+	xlog("uh_config_parse path:%s\n", path);
+
 	memset(line, 0, sizeof(line));
 
 	while (fgets(line, sizeof(line) - 1, c)) {
@@ -198,6 +200,7 @@ static void init_defaults_pre(void)
 #endif
 }
 
+/* 新增默认页面 */
 static void init_defaults_post(void)
 {
 	uh_index_add("index.html");
@@ -212,6 +215,7 @@ static void init_defaults_post(void)
 		strcat(str, conf.cgi_prefix);
 		conf.cgi_docroot_path = str;
 		conf.cgi_prefix_len = strlen(conf.cgi_prefix);
+		xlog("conf.cgi_docroot_path:%s\n", conf.cgi_docroot_path);
 	};
 }
 
@@ -232,6 +236,7 @@ static void fixup_prefix(char *str)
 
 #ifdef HAVE_LUA
 static void add_lua_prefix(const char *prefix, const char *handler) {
+	xlog("lua add_lua_prefix prefix:%s, handler:%s\n", prefix, handler);
 	struct lua_prefix *p;
 	char *pprefix, *phandler;
 
@@ -251,6 +256,8 @@ static void add_lua_prefix(const char *prefix, const char *handler) {
 
 #ifdef HAVE_UCODE
 static void add_ucode_prefix(const char *prefix, const char *handler) {
+	xlog("ucode add_ucode_prefix prefix:%s, handler:%s\n", prefix, handler);
+
 	struct ucode_prefix *p;
 	char *pprefix, *phandler;
 
@@ -270,6 +277,10 @@ static void add_ucode_prefix(const char *prefix, const char *handler) {
 
 int main(int argc, char **argv)
 {
+	{	// 初始化日志组件
+		xlog_init("/tmp/uhttpd.log");
+	}
+
 	struct alias *alias;
 	bool nofork = false;
 	char *port;
@@ -279,12 +290,18 @@ int main(int argc, char **argv)
 #ifdef HAVE_TLS
 	int n_tls = 0;
 	const char *tls_key = NULL, *tls_crt = NULL, *tls_ciphers = NULL;
+	xlog("have tls\n");
 #endif
 #ifdef HAVE_LUA
 	const char *lua_prefix = NULL, *lua_handler = NULL;
+	xlog("have lua\n");
 #endif
 #ifdef HAVE_UCODE
 	const char *ucode_prefix = NULL, *ucode_handler = NULL;
+	xlog("have ucode\n");
+#endif
+#ifdef HAVE_UBUS
+	xlog("have ubus\n");
 #endif
 
 	BUILD_BUG_ON(sizeof(uh_buf) < PATH_MAX);
@@ -292,6 +309,9 @@ int main(int argc, char **argv)
 	uh_dispatch_add(&cgi_dispatch);
 	init_defaults_pre();
 	signal(SIGPIPE, SIG_IGN);
+
+	// 一个运行示例
+	// /usr/sbin/uhttpd -f -h /www -r OpenWrt -x /cgi-bin -u /ubus -t 60 -T 30 -k 20 -A 1 -n 3 -N 100 -R -p 0.0.0.0:80 -p [::]:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443 -s [::]:443
 
 	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:fh:H:I:i:K:k:L:l:m:N:n:O:o:P:p:qRr:Ss:T:t:U:u:Xx:y:")) != -1) {
 		switch(ch) {
@@ -585,6 +605,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		conf.docroot = strdup(uh_buf);
+		xlog("conf.docroot:%s\n", conf.docroot);
 	}
 
 	init_defaults_post();
@@ -644,6 +665,7 @@ int main(int argc, char **argv)
 
 			cur_fd = open("/dev/null", O_WRONLY);
 			if (cur_fd > 0) {
+				xlog("fork 00000000000000000");
 				dup2(cur_fd, 0);
 				dup2(cur_fd, 1);
 				dup2(cur_fd, 2);
