@@ -270,6 +270,10 @@ static void add_ucode_prefix(const char *prefix, const char *handler) {
 
 int main(int argc, char **argv)
 {
+	{	// 初始化日志组件
+		//log_init("/tmp/uhttpd.log");
+	}
+
 	struct alias *alias;
 	bool nofork = false;
 	char *port;
@@ -279,12 +283,18 @@ int main(int argc, char **argv)
 #ifdef HAVE_TLS
 	int n_tls = 0;
 	const char *tls_key = NULL, *tls_crt = NULL, *tls_ciphers = NULL;
+	//xlog("have tls\n");
 #endif
 #ifdef HAVE_LUA
 	const char *lua_prefix = NULL, *lua_handler = NULL;
+	//xlog("have lua\n");
 #endif
 #ifdef HAVE_UCODE
 	const char *ucode_prefix = NULL, *ucode_handler = NULL;
+	//xlog("have ucode\n");
+#endif
+#ifdef HAVE_UBUS
+	//xlog("have ubus\n");
 #endif
 
 	BUILD_BUG_ON(sizeof(uh_buf) < PATH_MAX);
@@ -292,6 +302,9 @@ int main(int argc, char **argv)
 	uh_dispatch_add(&cgi_dispatch);
 	init_defaults_pre();
 	signal(SIGPIPE, SIG_IGN);
+
+	// 一个运行示例
+	// /usr/sbin/uhttpd -f -h /www -r OpenWrt -x /cgi-bin -u /ubus -t 60 -T 30 -k 20 -A 1 -n 3 -N 100 -R -p 0.0.0.0:80 -p [::]:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443 -s [::]:443
 
 	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:fh:H:I:i:K:k:L:l:m:N:n:O:o:P:p:qRr:Ss:T:t:U:u:Xx:y:")) != -1) {
 		switch(ch) {

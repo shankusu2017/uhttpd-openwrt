@@ -17,6 +17,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* 灵魂级别的头文件，需要重点阅读 */
+
 #ifndef __UHTTPD_H
 #define __UHTTPD_H
 
@@ -110,6 +112,7 @@ struct auth_realm {
 	const char *pass;
 };
 
+// 方法
 enum http_method {
 	UH_HTTP_MSG_GET,
 	UH_HTTP_MSG_POST,
@@ -120,12 +123,14 @@ enum http_method {
 	UH_HTTP_MSG_DELETE,
 };
 
+// 版本
 enum http_version {
 	UH_HTTP_VER_0_9,
 	UH_HTTP_VER_1_0,
 	UH_HTTP_VER_1_1,
 };
 
+// 客户端的浏览器类型
 enum http_user_agent {
 	UH_UA_UNKNOWN,
 	UH_UA_GECKO,
@@ -151,14 +156,18 @@ struct http_request {
 	const struct auth_realm *realm;
 };
 
+// 
 enum client_state {
 	CLIENT_STATE_INIT,
-	CLIENT_STATE_HEADER,
-	CLIENT_STATE_DATA,
-	CLIENT_STATE_DONE,
+	CLIENT_STATE_HEADER,	// 正在解析 HTTP 的 HEAD， 相关函数为 client_header_cb，client_parse_header
+	CLIENT_STATE_DATA,		// 正在解析 HTTP 的 DATA(BODY)，相关函数为 client_parse_header，client_header_complete，uh_handle_request
+	CLIENT_STATE_DONE,		// 
 	CLIENT_STATE_CLOSE,
 	CLIENT_STATE_CLEANUP,
 };
+
+// 从 web server 转入 cgi 的逻辑为
+// uh_handle_request->uh_invoke_handler--[lua.c,cgi.c,ubox.c ucode.c]
 
 struct interpreter {
 	struct list_head list;
@@ -210,6 +219,7 @@ struct dispatch_proc {
 };
 
 struct dispatch_handler {
+	char *name;
 	struct list_head list;
 	bool script;
 
@@ -246,7 +256,7 @@ struct dispatch {
 	int (*data_send)(struct client *cl, const char *data, int len);
 	void (*data_done)(struct client *cl);
 	void (*write_cb)(struct client *cl);
-	void (*close_fds)(struct client *cl);
+	void (*close_fds)(struct client *cl);	// 关闭继承自父进程的相关fds
 	void (*free)(struct client *cl);
 
 	void *req_data;
@@ -338,6 +348,7 @@ void uh_close_fds(void);
 void uh_interpreter_add(const char *ext, const char *path);
 void uh_dispatch_add(struct dispatch_handler *d);
 
+/* relay：中继 */
 void uh_relay_open(struct client *cl, struct relay *r, int fd, int pid);
 void uh_relay_close(struct relay *r, int ret);
 void uh_relay_free(struct relay *r);
@@ -369,4 +380,9 @@ static inline void uh_client_unref(struct client *cl)
 		ustream_state_change(cl->us);
 }
 
+// 写到文件里的日志组件
+// int log_init(char *path);
+// void xlog(char *format, ...);
+
 #endif
+

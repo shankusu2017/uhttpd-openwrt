@@ -170,7 +170,9 @@ static lua_State *uh_lua_state_init(struct lua_prefix *lua)
 	lua_pushstring(L, conf.docroot);
 	lua_setfield(L, -2, "docroot");
 
-	lua_setglobal(L, "uhttpd");
+	lua_setglobal(L, "uhttpd");	// 给虚拟机注入全局表，表名为 uhttpd,里面的项为上述函数
+
+	//xlog("uh_lua_state_init lua->handler:%s", lua->handler);
 
 	ret = luaL_loadfile(L, lua->handler);
 	if (ret) {
@@ -215,7 +217,7 @@ static void lua_main(struct client *cl, struct path_info *pi, char *url)
 	char *str;
 	int rem;
 
-	lua_getglobal(L, UH_LUA_CB);
+	lua_getglobal(L, UH_LUA_CB);	// 找到 lua虚拟机的调用函数入口 handle_request
 
 	/* new env table for this request */
 	lua_newtable(L);
@@ -232,6 +234,7 @@ static void lua_main(struct client *cl, struct path_info *pi, char *url)
 	if (prefix_len > 0 && pi->name[prefix_len - 1] == '/')
 		prefix_len--;
 
+	// 设置好环境变量给Lua虚拟机使用
 	if (path_len > prefix_len) {
 		lua_pushlstring(L, url + prefix_len,
 				path_len - prefix_len);
@@ -311,6 +314,7 @@ static bool check_lua_url(const char *url)
 }
 
 static struct dispatch_handler lua_dispatch = {
+	.name = "lua",
 	.script = true,
 	.check_url = check_lua_url,
 	.handle_request = lua_handle_request,

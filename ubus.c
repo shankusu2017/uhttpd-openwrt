@@ -988,6 +988,7 @@ static int
 uh_ubus_init(void)
 {
 	static struct dispatch_handler ubus_dispatch = {
+		.name = "ubus",
 		.check_url = uh_ubus_check_url,
 		.handle_request = uh_ubus_handle_request,
 	};
