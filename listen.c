@@ -181,7 +181,7 @@ int uh_socket_bind(const char *host, const char *port, bool tls)
 			goto error;
 		}
 
-		fd_cloexec(sock);	// 设置 FD_CLOEXEC 标识符
+		fd_cloexec(sock);
 
 		l = calloc(1, sizeof(*l));
 		if (!l)

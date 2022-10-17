@@ -415,7 +415,6 @@ check_ucode_url(const char *url)
 }
 
 static struct dispatch_handler ucode_dispatch = {
-	.name = "ucode",
 	.script = true,
 	.check_url = check_ucode_url,
 	.handle_request = ucode_handle_request,

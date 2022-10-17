@@ -345,7 +345,7 @@ bool uh_create_process(struct client *cl, struct path_info *pi, char *url,
 	if (pid < 0)
 		goto close_wfd;
 
-	if (!pid) {	// 子进程
+	if (!pid) {
 		close(0);
 		close(1);
 
@@ -357,7 +357,6 @@ bool uh_create_process(struct client *cl, struct path_info *pi, char *url,
 		close(wfd[0]);
 		close(wfd[1]);
 
-		// 关闭继承自父进程的相关fds
 		uh_close_fds();
 		cb(cl, pi, url);
 		exit(0);
