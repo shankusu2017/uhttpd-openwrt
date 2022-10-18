@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <poll.h>
 
+#include "ubuslog.h"
 #include "uhttpd.h"
 #include "plugin.h"
 
@@ -146,6 +147,43 @@ static void uh_ubus_next_batched_request(struct client *cl)
 	uloop_timeout_set(&du->timeout, 1);
 }
 
+
+static int ustream_log(struct ustream *s, const char *format, ...)
+{
+	char cache[4096];
+
+	va_list args;
+	va_start(args, format);
+	vsprintf(cache, format, args);
+	va_end(args);
+	ubuslog("---->>>> %s", cache);
+	
+	return ustream_printf(s, "%s", cache);
+}
+
+#define ustream_printf ustream_log
+
+
+
+static void log_param(const char *prefix, struct rpc_data *d) {
+	if (prefix && (d->sid || d->method || d->object || d->function)) {
+		ulog("%s", prefix);
+	}
+
+	if (d->sid) {
+		ulog("parse_json_rpc rpc_data.sid   	:%s\n", d->sid);
+	}
+	if (d->method) {
+		ulog("parse_json_rpc rpc_data.method	:%s\n", d->method);
+	}
+	if (d->object) {
+		ulog("parse_json_rpc rpc_data.object	:%s\n", d->object);
+	}
+	if ( d->function) {
+		ulog("parse_json_rpc rpc_data.function  :%s\n", d->function);
+	}
+}
+
 static void uh_ubus_add_cors_headers(struct client *cl)
 {
 	struct blob_attr *tb[__HDR_MAX];
@@ -179,6 +217,8 @@ static void uh_ubus_add_cors_headers(struct client *cl)
 	ustream_printf(cl->us, "Access-Control-Allow-Credentials: true\r\n");
 }
 
+
+
 static void uh_ubus_send_header(struct client *cl, int code, const char *summary, const char *content_type)
 {
 	ops->http_header(cl, code, summary);
@@ -194,6 +234,7 @@ static void uh_ubus_send_header(struct client *cl, int code, const char *summary
 	ustream_printf(cl->us, "\r\n");
 }
 
+// 返回json-rpc的内容给client
 static void uh_ubus_send_response(struct client *cl, struct blob_buf *buf)
 {
 	struct dispatch_ubus *du = &cl->dispatch.ubus;
@@ -205,6 +246,7 @@ static void uh_ubus_send_response(struct client *cl, struct blob_buf *buf)
 
 	str = blobmsg_format_json(buf->head, true);
 	ops->chunk_printf(cl, "%s%s", sep, str);
+	ulog("\nuh_ubus_send_response:%s\n", str);
 	free(str);
 
 	du->jsobj_cur = NULL;
@@ -214,6 +256,7 @@ static void uh_ubus_send_response(struct client *cl, struct blob_buf *buf)
 		return ops->request_done(cl);
 }
 
+// 准备返回一个json-rpc给client
 static void uh_ubus_init_json_rpc_response(struct client *cl, struct blob_buf *buf)
 {
 	struct dispatch_ubus *du = &cl->dispatch.ubus;
@@ -435,6 +478,7 @@ static void uh_ubus_handle_get(struct client *cl)
 
 /* POST requests handling */
 
+/* ubus 调用有数据返回了(返回完全部的数据则是调用 uh_ubus_request_cb ) */
 static void
 uh_ubus_request_data_cb(struct ubus_request *req, int type, struct blob_attr *msg)
 {
@@ -446,6 +490,7 @@ uh_ubus_request_data_cb(struct ubus_request *req, int type, struct blob_attr *ms
 		blobmsg_add_blob(&du->buf, cur);
 }
 
+/* ubus 调用数据全部返回完毕 */
 static void
 uh_ubus_request_cb(struct ubus_request *req, int ret)
 {
@@ -567,15 +612,20 @@ static void uh_ubus_send_request(struct client *cl, const char *sid, struct blob
 
 	blobmsg_add_string(&req, "ubus_rpc_session", sid);
 
+	ulog("uh_ubus_send_request sid: %s", sid);
+
 	blob_buf_init(&du->buf, 0);
 	memset(&du->req, 0, sizeof(du->req));
 	ret = ubus_invoke_async(ctx, du->obj, du->func, req.head, &du->req);
 	if (ret)
 		return uh_ubus_json_rpc_error(cl, ERROR_INTERNAL);
 
+	ulog("uh_ubus_send_request 11111111");
 	du->req.data_cb = uh_ubus_request_data_cb;
 	du->req.complete_cb = uh_ubus_request_cb;
+	ulog("uh_ubus_send_request 2222222");
 	ubus_complete_request_async(ctx, &du->req);
+	ulog("uh_ubus_send_request 3333333");
 
 	du->timeout.cb = uh_ubus_timeout_cb;
 	uloop_timeout_set(&du->timeout, conf.script_timeout * 1000);
@@ -737,6 +787,7 @@ static void parse_call_params(struct rpc_data *d)
 	d->data = tb[3];
 }
 
+// batch: 批量
 static void uh_ubus_init_batch(struct client *cl)
 {
 	struct dispatch_ubus *du = &cl->dispatch.ubus;
@@ -775,6 +826,8 @@ static void uh_ubus_handle_request_object(struct client *cl, struct json_object 
 	if (!strcmp(data.method, "call")) {
 		parse_call_params(&data);
 
+		log_param(__FUNCTION__, &data);
+
 		if (!data.sid || !data.object || !data.function || !data.data)
 			goto error;
 
@@ -793,6 +846,9 @@ static void uh_ubus_handle_request_object(struct client *cl, struct json_object 
 		goto out;
 	}
 	else if (!strcmp(data.method, "list")) {
+
+		log_param(__FUNCTION__, &data);
+
 		uh_ubus_send_list(cl, data.params);
 		goto out;
 	}
@@ -827,6 +883,8 @@ static void __uh_ubus_next_batched_request(struct uloop_timeout *timeout)
 
 static void uh_ubus_data_done(struct client *cl)
 {
+	ulog("###uh_ubus_data_done ###\n");
+
 	struct dispatch_ubus *du = &cl->dispatch.ubus;
 	struct json_object *obj = du->jsobj;
 
@@ -842,6 +900,7 @@ static void uh_ubus_data_done(struct client *cl)
 	}
 }
 
+// call 逻辑
 static void uh_ubus_call(struct client *cl, const char *path, const char *sid)
 {
 	struct dispatch_ubus *du = &cl->dispatch.ubus;
@@ -871,11 +930,15 @@ static void uh_ubus_call(struct client *cl, const char *path, const char *sid)
 		goto error;
 	}
 
+	// 权限检测
 	if (!conf.ubus_noauth && !uh_ubus_allowed(sid, path, data.method)) {
 		err = ERROR_ACCESS;
 		goto error;
 	}
 
+	log_param(__FUNCTION__, &data);
+
+	// 发往ubus
 	uh_ubus_send_request(cl, sid, data.params);
 	goto out;
 
@@ -888,6 +951,7 @@ out:
 	uh_client_unref(cl);
 }
 
+// http 的数据接收完毕后，通过回调调用此函数
 static void uh_ubus_handle_post(struct client *cl)
 {
 	struct dispatch_ubus *du = &cl->dispatch.ubus;
@@ -937,6 +1001,8 @@ error:
 
 static void uh_ubus_handle_request(struct client *cl, char *url, struct path_info *pi)
 {
+	ulog("#####  uh_ubus_handle_request url: %s method: %d \n", url, cl->request.method);
+	
 	struct dispatch *d = &cl->dispatch;
 	struct dispatch_ubus *du = &d->ubus;
 	char *chr;
@@ -959,7 +1025,7 @@ static void uh_ubus_handle_request(struct client *cl, char *url, struct path_inf
 		break;
 	case UH_HTTP_MSG_POST:
 		d->data_send = uh_ubus_data_send;
-		d->data_done = uh_ubus_handle_post;
+		d->data_done = uh_ubus_handle_post;	// 数据接收完毕时，调用此函数
 		d->close_fds = uh_ubus_close_fds;
 		d->free = uh_ubus_request_free;
 		du->jstok = json_tokener_new();
@@ -993,6 +1059,8 @@ uh_ubus_init(void)
 		.handle_request = uh_ubus_handle_request,
 	};
 
+	ulog("uh_ubus_init conf.ubus_socket:%s", conf.ubus_socket);
+
 	ctx = ubus_connect(conf.ubus_socket);
 	if (!ctx) {
 		fprintf(stderr, "Unable to connect to ubus socket\n");
@@ -1019,6 +1087,7 @@ static void uh_ubus_post_init(void)
 }
 
 struct uhttpd_plugin uhttpd_plugin = {
+	.name = "ubus",
 	.init = uh_ubus_plugin_init,
 	.post_init = uh_ubus_post_init,
 };

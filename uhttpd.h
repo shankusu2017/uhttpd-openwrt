@@ -380,9 +380,9 @@ static inline void uh_client_unref(struct client *cl)
 		ustream_state_change(cl->us);
 }
 
-// 写到文件里的日志组件
-// int log_init(char *path);
-// void xlog(char *format, ...);
+// 自定义日志组件
+int log_init(char *path);
+void xlog(char *format, ...);
 
 #endif
 

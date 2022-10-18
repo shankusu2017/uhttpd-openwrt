@@ -39,20 +39,22 @@ static const struct uhttpd_ops ops = {
 
 int uh_plugin_init(const char *name)
 {
+	xlog("uh_plugin_init name: %s\n", name);
+
 	struct uhttpd_plugin *p;
 	const char *sym;
 	void *dlh;
 
 	dlh = dlopen(name, RTLD_LAZY | RTLD_GLOBAL);
 	if (!dlh) {
-		fprintf(stderr, "Could not open plugin %s: %s\n", name, dlerror());
+		xlog("Could not open plugin %s: %s\n", name, dlerror());
 		return -ENOENT;
 	}
 
 	sym = "uhttpd_plugin";
 	p = dlsym(dlh, sym);
 	if (!p) {
-		fprintf(stderr, "Could not find symbol '%s' in plugin '%s'\n", sym, name);
+		xlog("Could not find symbol '%s' in plugin '%s'\n", sym, name);
 		return -ENOENT;
 	}
 
@@ -64,7 +66,11 @@ void uh_plugin_post_init(void)
 {
 	struct uhttpd_plugin *p;
 
-	list_for_each_entry(p, &plugins, list)
-		if (p->post_init)
+	list_for_each_entry(p, &plugins, list) {
+		if (p->post_init) {
 			p->post_init();
+		}
+		xlog("uh_plugin_post_init p->name:%s\n", p->name);
+	}
 }
+

@@ -731,6 +731,7 @@ dispatch_find(const char *url, struct path_info *pi)
 static void
 uh_invoke_script(struct client *cl, struct dispatch_handler *d, char *url, struct path_info *pi)
 {
+	xlog("uh_invoke_script %s, url:%s\n", d->name, url);
 	n_requests++;
 	d->handle_request(cl, url, pi);
 }

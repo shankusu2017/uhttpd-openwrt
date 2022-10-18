@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <poll.h>
 
+#include "ucodelog.h"
 #include "uhttpd.h"
 #include "plugin.h"
 
@@ -437,5 +438,6 @@ ucode_plugin_init(const struct uhttpd_ops *o, struct config *c)
 }
 
 struct uhttpd_plugin uhttpd_plugin = {
+	.name = "ucode",
 	.init = ucode_plugin_init,
 };

@@ -271,7 +271,7 @@ static void add_ucode_prefix(const char *prefix, const char *handler) {
 int main(int argc, char **argv)
 {
 	{	// 初始化日志组件
-		//log_init("/tmp/uhttpd.log");
+		log_init("/tmp/uhttpd.log");
 	}
 
 	struct alias *alias;
@@ -283,18 +283,18 @@ int main(int argc, char **argv)
 #ifdef HAVE_TLS
 	int n_tls = 0;
 	const char *tls_key = NULL, *tls_crt = NULL, *tls_ciphers = NULL;
-	//xlog("have tls\n");
+	xlog("have tls\n");
 #endif
 #ifdef HAVE_LUA
 	const char *lua_prefix = NULL, *lua_handler = NULL;
-	//xlog("have lua\n");
+	xlog("have lua\n");
 #endif
 #ifdef HAVE_UCODE
 	const char *ucode_prefix = NULL, *ucode_handler = NULL;
-	//xlog("have ucode\n");
+	xlog("have ucode\n");
 #endif
 #ifdef HAVE_UBUS
-	//xlog("have ubus\n");
+	xlog("have ubus\n");
 #endif
 
 	BUILD_BUG_ON(sizeof(uh_buf) < PATH_MAX);
@@ -304,7 +304,8 @@ int main(int argc, char **argv)
 	signal(SIGPIPE, SIG_IGN);
 
 	// 一个运行示例
-	// /usr/sbin/uhttpd -f -h /www -r OpenWrt -x /cgi-bin -u /ubus -t 60 -T 30 -k 20 -A 1 -n 3 -N 100 -R -p 0.0.0.0:80 -p [::]:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443 -s [::]:443
+	// 启动 ubos 插件  /usr/sbin/uhttpd -f -h /www -r OpenWrt -x /cgi-bin -u /ubus -t 60 -T 30 -k 20 -A 1 -n 3 -N 100 -R -p 0.0.0.0:80 -p [::]:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443 -s [::]:443
+	// 启用 lua  插件  /usr/sbin/uhttpd -f -h /www -r OpenWrt -x /cgi-bin -l /cgi-bin/luci -L /usr/lib/lua/luci/sgi/uhttpd.lua -u /ubus -t 60 -T 30 -k 20 -A 1 -n 3 -N 100 -R -p 0.0.0.0:80 -p [::]:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443 -s [::]:443
 
 	while ((ch = getopt(argc, argv, "A:ab:C:c:Dd:E:e:fh:H:I:i:K:k:L:l:m:N:n:O:o:P:p:qRr:Ss:T:t:U:u:Xx:y:")) != -1) {
 		switch(ch) {
@@ -620,6 +621,7 @@ int main(int argc, char **argv)
 	}
 #endif
 
+
 #ifdef HAVE_LUA
 	if (lua_handler || lua_prefix) {
 		fprintf(stderr, "Need handler and prefix to enable Lua support\n");
@@ -629,6 +631,13 @@ int main(int argc, char **argv)
 	if (!list_empty(&conf.lua_prefix) && uh_plugin_init("uhttpd_lua.so"))
 		return 1;
 #endif
+
+#ifdef HAVE_UBUS
+	if (conf.ubus_prefix && uh_plugin_init("uhttpd_ubus.so")) {
+		return 1;
+	}
+#endif
+
 #ifdef HAVE_UCODE
 	if (ucode_handler || ucode_prefix) {
 		fprintf(stderr, "Need handler and prefix to enable ucode support\n");
@@ -638,10 +647,7 @@ int main(int argc, char **argv)
 	if (!list_empty(&conf.ucode_prefix) && uh_plugin_init("uhttpd_ucode.so"))
 		return 1;
 #endif
-#ifdef HAVE_UBUS
-	if (conf.ubus_prefix && uh_plugin_init("uhttpd_ubus.so"))
-		return 1;
-#endif
+
 
 	/* fork (if not disabled) */
 	if (!nofork) {
@@ -669,5 +675,6 @@ int main(int argc, char **argv)
 		}
 	}
 
+	xlog("read cfg done\n");
 	return run_server();
 }

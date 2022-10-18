@@ -26,6 +26,7 @@
 
 #include "uhttpd.h"
 #include "plugin.h"
+#include "lualog.h"
 
 #define UH_LUA_CB	"handle_request"
 
@@ -67,6 +68,11 @@ static int uh_lua_recv(lua_State *L)
 			if (!data_len)
 				data_len = -1;
 			break;
+		} else {
+			char cache[65536];		// big enough
+			memcpy(cache, buf, r);
+			cache[r] = 0;
+			lualog("\nuh_lua_recv: %s\n", cache);
 		}
 		if (!r)
 			break;
@@ -96,8 +102,14 @@ static int uh_lua_send(lua_State *L)
 	size_t len;
 
 	buf = luaL_checklstring(L, 1, &len);
-	if (len > 0)
+	if (len > 0) {
 		len = write(STDOUT_FILENO, buf, len);
+
+		char cache[65536];		// big enough
+		memcpy(cache, buf, len);
+		cache[len] = 0;
+		lualog("\nuh_lua_send: %s\n", cache);
+	}
 
 	lua_pushnumber(L, len);
 	return 1;
@@ -139,6 +151,21 @@ static int uh_lua_urlencode(lua_State *L)
 	return uh_lua_strconvert(L, ops->urlencode);
 }
 
+static int uh_lua_log(lua_State *L)
+{
+	const char *buf;
+	size_t len;
+
+	buf = luaL_checklstring(L, 1, &len);
+	if (len > 0) {
+		char cache[20480];
+		cache[len] = 0;
+		memcpy(cache, buf, len);
+		lualog("lua-script: %s", cache);
+	}
+	return 0;
+}
+
 static lua_State *uh_lua_state_init(struct lua_prefix *lua)
 {
 	const char *msg = "(unknown error)";
@@ -170,9 +197,12 @@ static lua_State *uh_lua_state_init(struct lua_prefix *lua)
 	lua_pushstring(L, conf.docroot);
 	lua_setfield(L, -2, "docroot");
 
+	lua_pushcfunction(L, uh_lua_log);
+	lua_setfield(L, -2, "log");
+
 	lua_setglobal(L, "uhttpd");	// 给虚拟机注入全局表，表名为 uhttpd,里面的项为上述函数
 
-	//xlog("uh_lua_state_init lua->handler:%s", lua->handler);
+	lualog("uh_lua_state_init lua->handler: %s\n", lua->handler);
 
 	ret = luaL_loadfile(L, lua->handler);
 	if (ret) {
@@ -209,6 +239,8 @@ error:
 
 static void lua_main(struct client *cl, struct path_info *pi, char *url)
 {
+	lualog("lua_main url: %s\n", url);
+
 	struct blob_attr *cur;
 	const char *error;
 	struct env_var *var;
@@ -276,6 +308,8 @@ static void lua_main(struct client *cl, struct path_info *pi, char *url)
 
 static void lua_handle_request(struct client *cl, char *url, struct path_info *pi)
 {
+	lualog("lua_handle_request url: %s\n", url);
+
 	struct lua_prefix *p;
 	static struct path_info _pi;
 
@@ -304,6 +338,8 @@ static void lua_handle_request(struct client *cl, char *url, struct path_info *p
 
 static bool check_lua_url(const char *url)
 {
+	// lualog("check_lua_url url: %s\n", url);
+
 	struct lua_prefix *p;
 
 	list_for_each_entry(p, &conf.lua_prefix, list)
@@ -322,6 +358,8 @@ static struct dispatch_handler lua_dispatch = {
 
 static int lua_plugin_init(const struct uhttpd_ops *o, struct config *c)
 {
+	lualog("lua_plugin_init url\n");
+
 	struct lua_prefix *p;
 
 	ops = o;
@@ -335,5 +373,6 @@ static int lua_plugin_init(const struct uhttpd_ops *o, struct config *c)
 }
 
 struct uhttpd_plugin uhttpd_plugin = {
+	.name = "lua",
 	.init = lua_plugin_init,
 };

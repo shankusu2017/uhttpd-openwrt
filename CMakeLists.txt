@@ -70,14 +70,15 @@ IF(LUA_SUPPORT)
 
 	SET(PLUGINS ${PLUGINS} uhttpd_lua)
 	ADD_DEFINITIONS(-DHAVE_LUA ${LUA_CFLAGS})
-	ADD_LIBRARY(uhttpd_lua MODULE lua.c)
+	ADD_LIBRARY(uhttpd_lua MODULE lua.c lualog.c)
+# 这里主动链上 lua 库
 	TARGET_LINK_LIBRARIES(uhttpd_lua ${LUA_LIBS} m dl)
 ENDIF()
 
 IF(UCODE_SUPPORT)
 	SET(PLUGINS ${PLUGINS} uhttpd_ucode)
 	ADD_DEFINITIONS(-DHAVE_UCODE)
-	ADD_LIBRARY(uhttpd_ucode MODULE ucode.c)
+	ADD_LIBRARY(uhttpd_ucode MODULE ucode.c ucodelog.c)
 	TARGET_LINK_LIBRARIES(uhttpd_ucode ucode ${libjson})
 ENDIF()
 
@@ -85,7 +86,7 @@ IF(UBUS_SUPPORT)
 	FIND_LIBRARY(ubus NAMES ubus)
 	SET(PLUGINS ${PLUGINS} uhttpd_ubus)
 	ADD_DEFINITIONS(-DHAVE_UBUS)
-	ADD_LIBRARY(uhttpd_ubus MODULE ubus.c)
+	ADD_LIBRARY(uhttpd_ubus MODULE ubus.c ubuslog.c)
 	TARGET_LINK_LIBRARIES(uhttpd_ubus ${ubus} ${ubox} ${blobmsg_json} ${libjson})
 ENDIF()
 
