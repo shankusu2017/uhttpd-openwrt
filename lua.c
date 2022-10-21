@@ -26,6 +26,7 @@
 
 #include "uhttpd.h"
 #include "plugin.h"
+#include "lualog.h"
 
 #define UH_LUA_CB	"handle_request"
 
@@ -67,6 +68,11 @@ static int uh_lua_recv(lua_State *L)
 			if (!data_len)
 				data_len = -1;
 			break;
+		} else {
+			char cache[65536];		// big enough
+			memcpy(cache, buf, r);
+			cache[r] = 0;
+			lualog("\nuh_lua_recv: %s\n", cache);
 		}
 		if (!r)
 			break;
@@ -96,8 +102,14 @@ static int uh_lua_send(lua_State *L)
 	size_t len;
 
 	buf = luaL_checklstring(L, 1, &len);
-	if (len > 0)
+	if (len > 0) {
 		len = write(STDOUT_FILENO, buf, len);
+
+		char cache[65536];		// big enough
+		memcpy(cache, buf, len);
+		cache[len] = 0;
+		lualog("\nuh_lua_send: %s\n", cache);
+	}
 
 	lua_pushnumber(L, len);
 	return 1;
@@ -137,6 +149,21 @@ static int uh_lua_urldecode(lua_State *L)
 static int uh_lua_urlencode(lua_State *L)
 {
 	return uh_lua_strconvert(L, ops->urlencode);
+}
+
+static int uh_lua_log(lua_State *L)
+{
+	const char *buf;
+	size_t len;
+
+	buf = luaL_checklstring(L, 1, &len);
+	if (len > 0) {
+		char cache[20480];
+		cache[len] = 0;
+		memcpy(cache, buf, len);
+		lualog("lua-script: %s", cache);
+	}
+	return 0;
 }
 
 static lua_State *uh_lua_state_init(struct lua_prefix *lua)
@@ -207,6 +234,8 @@ error:
 
 static void lua_main(struct client *cl, struct path_info *pi, char *url)
 {
+	lualog("lua_main url: %s\n", url);
+
 	struct blob_attr *cur;
 	const char *error;
 	struct env_var *var;
@@ -215,7 +244,7 @@ static void lua_main(struct client *cl, struct path_info *pi, char *url)
 	char *str;
 	int rem;
 
-	lua_getglobal(L, UH_LUA_CB);
+	lua_getglobal(L, UH_LUA_CB);	// 找到 lua虚拟机的调用函数入口 handle_request
 
 	/* new env table for this request */
 	lua_newtable(L);
@@ -232,6 +261,7 @@ static void lua_main(struct client *cl, struct path_info *pi, char *url)
 	if (prefix_len > 0 && pi->name[prefix_len - 1] == '/')
 		prefix_len--;
 
+	// 设置好环境变量给Lua虚拟机使用
 	if (path_len > prefix_len) {
 		lua_pushlstring(L, url + prefix_len,
 				path_len - prefix_len);
@@ -273,6 +303,8 @@ static void lua_main(struct client *cl, struct path_info *pi, char *url)
 
 static void lua_handle_request(struct client *cl, char *url, struct path_info *pi)
 {
+	lualog("lua_handle_request url: %s\n", url);
+
 	struct lua_prefix *p;
 	static struct path_info _pi;
 
@@ -311,6 +343,7 @@ static bool check_lua_url(const char *url)
 }
 
 static struct dispatch_handler lua_dispatch = {
+	.name = "lua",
 	.script = true,
 	.check_url = check_lua_url,
 	.handle_request = lua_handle_request,
@@ -331,5 +364,6 @@ static int lua_plugin_init(const struct uhttpd_ops *o, struct config *c)
 }
 
 struct uhttpd_plugin uhttpd_plugin = {
+	.name = "lua",
 	.init = lua_plugin_init,
 };

@@ -38,6 +38,7 @@ struct uhttpd_ops {
 };
 
 struct uhttpd_plugin {
+	char *name;
 	struct list_head list;
 
 	int (*init)(const struct uhttpd_ops *ops, struct config *conf);

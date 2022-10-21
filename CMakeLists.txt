@@ -24,7 +24,7 @@ ENDIF()
 FIND_PATH(ubox_include_dir libubox/usock.h)
 INCLUDE_DIRECTORIES(${ubox_include_dir})
 
-SET(SOURCES main.c listen.c client.c utils.c file.c auth.c cgi.c relay.c proc.c plugin.c handler.c)
+SET(SOURCES main.c listen.c client.c utils.c file.c auth.c cgi.c relay.c proc.c plugin.c handler.c log.c)
 IF(TLS_SUPPORT)
 	SET(SOURCES ${SOURCES} tls.c)
 	ADD_DEFINITIONS(-DHAVE_TLS)
@@ -65,7 +65,8 @@ IF(LUA_SUPPORT)
 
 	SET(PLUGINS ${PLUGINS} uhttpd_lua)
 	ADD_DEFINITIONS(-DHAVE_LUA ${LUA_CFLAGS})
-	ADD_LIBRARY(uhttpd_lua MODULE lua.c)
+	ADD_LIBRARY(uhttpd_lua MODULE lua.c lualog.c)
+# 这里主动链上 lua 库
 	TARGET_LINK_LIBRARIES(uhttpd_lua ${LUA_LIBS} m dl)
 ENDIF()
 

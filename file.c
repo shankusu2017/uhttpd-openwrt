@@ -49,6 +49,7 @@ struct deferred_request {
 	struct dispatch_handler *d;
 	struct client *cl;
 	struct path_info pi;
+	char *url;
 	bool called, path;
 };
 

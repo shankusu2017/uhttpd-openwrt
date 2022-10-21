@@ -243,6 +243,10 @@ static void add_lua_prefix(const char *prefix, const char *handler) {
 
 int main(int argc, char **argv)
 {
+	{	// 初始化日志组件
+		log_init("/tmp/uhttpd.log");
+	}
+
 	struct alias *alias;
 	bool nofork = false;
 	char *port;
@@ -252,9 +256,11 @@ int main(int argc, char **argv)
 #ifdef HAVE_TLS
 	int n_tls = 0;
 	const char *tls_key = NULL, *tls_crt = NULL, *tls_ciphers = NULL;
+	xlog("have tls\n");
 #endif
 #ifdef HAVE_LUA
 	const char *lua_prefix = NULL, *lua_handler = NULL;
+	xlog("have lua\n");
 #endif
 
 	BUILD_BUG_ON(sizeof(uh_buf) < PATH_MAX);
