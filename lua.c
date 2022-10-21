@@ -197,6 +197,9 @@ static lua_State *uh_lua_state_init(struct lua_prefix *lua)
 	lua_pushstring(L, conf.docroot);
 	lua_setfield(L, -2, "docroot");
 
+	lua_pushstring(l, "log");
+	lua_setfield(L, -2, "log");
+
 	lua_setglobal(L, "uhttpd");
 
 	ret = luaL_loadfile(L, lua->handler);
